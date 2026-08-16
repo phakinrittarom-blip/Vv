@@ -1,0 +1,228 @@
+-- โหลด Venyx UI Library
+local Venyx = loadstring(game:HttpGet("https://raw.githubusercontent.com/GreenDino/Venyx-UI-Library/main/source.lua"))()
+
+-- ตัวแปรระบบ Roblox
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+
+-- สร้าง Window หลัก
+local UI = Venyx.new("phakin Hub", 5013109572)
+
+-- ==========================================
+-- ปุ่มลอย เปิด/ปิด UI บนหน้าจอ
+-- ==========================================
+if CoreGui:FindFirstChild("phakin_ToggleUI") then
+    CoreGui.phakin_ToggleUI:Destroy()
+end
+
+local toggleScreen = Instance.new("ScreenGui")
+toggleScreen.Name = "phakin_ToggleUI"
+toggleScreen.Parent = CoreGui
+
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Name = "ToggleButton"
+toggleBtn.Parent = toggleScreen
+toggleBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+toggleBtn.Position = UDim2.new(0, 15, 0.4, 0)
+toggleBtn.Size = UDim2.new(0, 90, 0, 35)
+toggleBtn.Font = Enum.Font.SourceSansBold
+toggleBtn.Text = "เปิด/ปิด UI"
+toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleBtn.TextSize = 14
+toggleBtn.Active = true
+toggleBtn.Draggable = true
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 6)
+corner.Parent = toggleBtn
+
+toggleBtn.MouseButton1Click:Connect(function()
+    UI:toggle()
+end)
+
+-- ==========================================
+-- แท็บที่ 1: ผู้เล่น (Player)
+-- ==========================================
+local PlayerPage = UI:addPage("ผู้เล่น", 5012544693)
+local PlayerSection = PlayerPage:addSection("ปรับแต่งตัวละคร")
+
+PlayerSection:addSlider("ความเร็วเดิน (WalkSpeed)", 16, 16, 200, function(value)
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+        LocalPlayer.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = value
+    end
+end)
+
+PlayerSection:addSlider("แรงกระโดด (JumpPower)", 50, 50, 300, function(value)
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+        local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+        hum.UseJumpPower = true
+        hum.JumpPower = value
+    end
+end)
+
+PlayerSection:addButton("รีเซ็ตค่าเดิม", function()
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+        local hum = LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+        hum.WalkSpeed = 16
+        hum.JumpPower = 50
+    end
+end)
+
+-- ==========================================
+-- แท็บที่ 2: มองทะลุ (ESP)
+-- ==========================================
+local EspPage = UI:addPage("มองทะลุ", 5012544693)
+local EspSection = EspPage:addSection("ระบบ ESP")
+local espEnabled = false
+
+local function applyESP(chr)
+    if not chr then return end
+    if chr:FindFirstChild("phakin_ESP") then chr.phakin_ESP:Destroy() end
+    
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "phakin_ESP"
+    highlight.FillColor = Color3.fromRGB(255, 0, 0)
+    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+    highlight.FillTransparency = 0.5
+    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    highlight.Enabled = espEnabled
+    highlight.Parent = chr
+end
+
+local function trackPlayer(plr)
+    if plr == LocalPlayer then return end
+    if plr.Character then applyESP(plr.Character) end
+    plr.CharacterAdded:Connect(applyESP)
+end
+
+for _, plr in pairs(Players:GetPlayers()) do trackPlayer(plr) end
+Players.PlayerAdded:Connect(trackPlayer)
+
+EspSection:addToggle("เปิดระบบมองทะลุ (ESP)", false, function(value)
+    espEnabled = value
+    for _, p in pairs(Players:GetPlayers()) do
+        if p.Character and p.Character:FindFirstChild("phakin_ESP") then
+            p.Character.phakin_ESP.Enabled = value
+        end
+    end
+end)
+
+-- ==========================================
+-- แท็บที่ 3: วาร์ป & ชนกระเด็น (Teleport & Fling)
+-- ==========================================
+local TelePage = UI:addPage("วาร์ป & ชนกระเด็น", 5012544693)
+local TeleSection = TelePage:addSection("ระบบ Fling & Teleport")
+
+local targetPlayerName = ""
+local flingEnabled = false
+local flingAllEnabled = false
+
+local function getOtherPlayers()
+    local tbl = {}
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer then table.insert(tbl, p.Name) end
+    end
+    if #tbl == 0 then table.insert(tbl, "ไม่มีผู้เล่นอื่น") end
+    return tbl
+end
+
+local playerDropdown = TeleSection:addDropdown("เลือกผู้เล่นเป้าหมาย", getOtherPlayers(), function(value)
+    targetPlayerName = value
+end)
+
+TeleSection:addButton("รีเฟรชรายชื่อผู้เล่น", function()
+    TeleSection:updateDropdown(playerDropdown, "เลือกผู้เล่นเป้าหมาย", getOtherPlayers())
+end)
+
+TeleSection:addButton("วาร์ปไปหาผู้เล่นที่เลือก", function()
+    local target = Players:FindFirstChild(targetPlayerName)
+    if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            LocalPlayer.Character.HumanoidRootPart.CFrame = target.Character.HumanoidRootPart.CFrame
+        end
+    end
+end)
+
+-- ฟังก์ชันชนกระเด็นแบบเจาะจงรายบุคคล
+TeleSection:addToggle("ชนกระเด็นแบบเจาะจง (Fling Target)", false, function(value)
+    flingEnabled = value
+    if value then
+        task.spawn(function()
+            while flingEnabled do
+                task.wait()
+                local target = Players:FindFirstChild(targetPlayerName)
+                local myChar = LocalPlayer.Character
+                if target and target.Character and myChar then
+                    local myHRP = myChar:FindFirstChild("HumanoidRootPart")
+                    local tHRP = target.Character:FindFirstChild("HumanoidRootPart")
+                    if myHRP and tHRP then
+                        myHRP.CFrame = tHRP.CFrame
+                        myHRP.Velocity = Vector3.new(0, 99999, 0)
+                        myHRP.RotVelocity = Vector3.new(99999, 99999, 99999)
+                    end
+                end
+            end
+            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                LocalPlayer.Character.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+                LocalPlayer.Character.HumanoidRootPart.RotVelocity = Vector3.new(0, 0, 0)
+            end
+        end)
+    end
+end)
+
+-- ฟังก์ชันชนกระเด็นทุกคนในเซิร์ฟเวอร์
+TeleSection:addToggle("ชนกระเด็นทุกคน (Fling All)", false, function(value)
+    flingAllEnabled = value
+    if value then
+        task.spawn(function()
+            while flingAllEnabled do
+                task.wait()
+                for _, target in pairs(Players:GetPlayers()) do
+                    if not flingAllEnabled then break end
+                    if target ~= LocalPlayer and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+                        local myChar = LocalPlayer.Character
+                        if myChar and myChar:FindFirstChild("HumanoidRootPart") then
+                            local myHRP = myChar.HumanoidRootPart
+                            local tHRP = target.Character.HumanoidRootPart
+                            myHRP.CFrame = tHRP.CFrame
+                            myHRP.Velocity = Vector3.new(0, 99999, 0)
+                            myHRP.RotVelocity = Vector3.new(99999, 99999, 99999)
+                        end
+                    end
+                end
+            end
+            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                LocalPlayer.Character.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+                LocalPlayer.Character.HumanoidRootPart.RotVelocity = Vector3.new(0, 0, 0)
+            end
+        end)
+    end
+end)
+
+-- ==========================================
+-- แท็บที่ 4: ทั่วไป (Misc)
+-- ==========================================
+local MiscPage = UI:addPage("ทั่วไป", 5012544693)
+local MiscSection = MiscPage:addSection("ฟังก์ชันเสริม")
+local noclipEnabled = false
+
+MiscSection:addToggle("เดินทะลุกำแพง (Noclip)", false, function(value)
+    noclipEnabled = value
+end)
+
+MiscSection:addKeybind("ปุ่มเปิด/ปิด UI", Enum.KeyCode.LeftControl, function()
+    UI:toggle()
+end)
+
+RunService.Stepped:Connect(function()
+    if noclipEnabled and LocalPlayer.Character then
+        for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
+            end
+        end
+    end
+end)
